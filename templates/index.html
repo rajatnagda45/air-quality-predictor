@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div class="glass">
+    <div class="hero-left">
+      <h1>AI Air Quality Predictor</h1>
+      <p class="lead">Enter pollutant levels and get an instant AQI estimate with category & recommendation.</p>
+
+      <form id="predict-form" action="{{ url_for('predict') }}" method="post" autocomplete="off">
+        <div class="grid">
+          <input type="number" name="pm25" step="any" placeholder="PM2.5 (µg/m³)" required value="{{ inputs['PM2.5'] if inputs else '' }}">
+          <input type="number" name="pm10" step="any" placeholder="PM10 (µg/m³)" required value="{{ inputs['PM10'] if inputs else '' }}">
+          <input type="number" name="no2" step="any" placeholder="NO₂ (ppb)" required value="{{ inputs['NO2'] if inputs else '' }}">
+          <input type="number" name="so2" step="any" placeholder="SO₂ (ppb)" required value="{{ inputs['SO2'] if inputs else '' }}">
+          <input type="number" name="co" step="any" placeholder="CO (ppm)" required value="{{ inputs['CO'] if inputs else '' }}">
+          <input type="number" name="ozone" step="any" placeholder="Ozone (ppb)" required value="{{ inputs['Ozone'] if inputs else '' }}">
+        </div>
+
+        <div class="form-actions">
+          <button class="cta" type="submit">Predict AQI</button>
+          <button type="button" id="fill-suggest" class="ghost">Try sample</button>
+        </div>
+      </form>
+
+      {% if error %}
+        <p class="error">Error: {{ error }}</p>
+      {% endif %}
+    </div>
+
+    <div class="hero-right">
+      <div id="result" class="result" style="display: {{ 'block' if prediction else 'none' }}">
+        {% if prediction %}
+          <div class="result-header" style="background: linear-gradient(90deg, {{ prediction.color }} 0%, rgba(0,0,0,0.2) 100%)">
+            <h3>{{ prediction.emoji }} {{ prediction.category }}</h3>
+            <p class="aqi-number">{{ prediction.aqi }}</p>
+          </div>
+
+          <div class="result-body">
+            <p class="advice">
+              {% if prediction.aqi <= 50 %}
+                Air quality is excellent. Enjoy your day outside! 🌿
+              {% elif prediction.aqi <= 100 %}
+                Moderate air quality. Sensitive people should take care. 🙂
+              {% elif prediction.aqi <= 200 %}
+                Air quality is poor. Limit outdoor activities. 😷
+              {% elif prediction.aqi <= 300 %}
+                Very poor air. Avoid staying outdoors. 🚫
+              {% else %}
+                Extremely polluted air. Stay inside, wear N95 mask. ☠️
+              {% endif %}
+            </p>
+            <canvas id="pollutantChart" width="300" height="200"></canvas>
+          </div>
+        {% else %}
+          <div class="placeholder">
+            <p>Prediction will appear here after you submit pollutant values.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const prediction = {{ prediction | tojson }};
+  const inputs = {{ inputs | tojson }};
+
+  function renderChart() {
+    const ctx = document.getElementById('pollutantChart');
+    if (!ctx || !inputs) return;
+
+    const labels = Object.keys(inputs);
+    const values = Object.values(inputs);
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Pollutant Levels',
+          data: values,
+          backgroundColor: labels.map(_ => prediction ? prediction.color : '#38bdf8'),
+          borderRadius: 8,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { color: '#e2e8f0' } },
+          x: { ticks: { color: '#e2e8f0' } }
+        }
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderChart();
+    document.getElementById('fill-suggest').addEventListener('click', function(){
+      document.querySelector('input[name=pm25]').value = 65;
+      document.querySelector('input[name=pm10]').value = 120;
+      document.querySelector('input[name=no2]').value = 40;
+      document.querySelector('input[name=so2]').value = 15;
+      document.querySelector('input[name=co]').value = 0.9;
+      document.querySelector('input[name=ozone]').value = 30;
+    });
+  });
+</script>
+{% endblock %}
